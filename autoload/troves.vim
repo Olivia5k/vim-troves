@@ -28,7 +28,7 @@ if !isdirectory(cachedir)
 endif
 
 " }}}
-" Meat of the plugin {{{
+" Intialization functions {{{
 
 function! troves#Init()
   let b:troves = troves#Load()
@@ -40,10 +40,28 @@ function! troves#Load()
     call troves#Download()
   endif
 
-  " haha fak u emacs |o/
-  let troves = readfile(g:troves_cache)
-  let troves = map(troves, "substitute(v:val, 'Emacs', 'vim', '')")
+  let troves = {}
+  for line in readfile(g:troves_cache)
+    let troves = s:parse(troves, split(line, ' :: '))
+  endfor
+
   return troves
+endfunction
+
+function! s:parse(struct, body)
+  " Recursively parse the :: structure into dictionaries so that we can
+  " traverse them a bit easier.
+  let struct = a:struct
+
+  let key = a:body[0]
+  if !has_key(struct, key)
+    let struct[key] = {}
+  endif
+
+  if len(a:body) > 1
+    call extend(struct[key], s:parse(struct[key], a:body[1:]))
+  endif
+  return struct
 endfunction
 
 function! troves#Download()
@@ -51,11 +69,48 @@ function! troves#Download()
   silent exe "!curl --silent -o" g:troves_cache shellescape(g:troves_url, 1) '&'
 endfunction
 
+" }}}
+" Complete function! {{{
+
 function! troves#TroveComplete(findstart, base)
+  " a:findstart is 1, this is the index finder run
   if a:findstart == 1
-    return match(getline('.'), '^\W*\zs\w')
+    let line = getline('.')
+
+    " Colon line; start at the last occurance of " :: "
+    let colon = match(line, '.*:: \zs')
+    if colon != -1
+      return colon
+    endif
+
+    " Normal line; match beginning of line or first \w.
+    return match(line, '^\W*\zs\w')
+
+  " a:findstart is zero, this is not a drill!
   else
-    return filter(copy(b:troves), 'v:val =~ "^' . a:base . '"')
+    let ret = []
+    let data = b:troves
+
+    " Clear the line from anything before the forst \w
+    let line = substitute(getline('.'), '^\W\+', '', '')
+
+    " Figure out which level to work from.
+    for cat in split(line, ' :: ')
+      if has_key(data, cat)
+        let data = data[cat]
+      endif
+    endfor
+
+    for key in sort(keys(data))
+      if len(data[key]) > 0
+        " If the key has children, add the double colon.
+        let key .= ' :: '
+      endif
+      let ret = add(ret, key)
+    endfor
+
+    " Finally, filter on the input
+    return filter(ret, 'v:val =~ "^'.a:base.'"')
   endif
 endfunction
 
