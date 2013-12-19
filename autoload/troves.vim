@@ -22,9 +22,9 @@ endif
 let g:troves_cache = expand(g:troves_cache)
 
 " Make sure that the cache directory exists
-let cachedir = fnamemodify(g:troves_cache, ':h')
-if !isdirectory(cachedir)
-  call mkdir(cachedir, 'p')
+let s:cachedir = fnamemodify(g:troves_cache, ':h')
+if !isdirectory(s:cachedir)
+  call mkdir(s:cachedir, 'p')
 endif
 
 " }}}
