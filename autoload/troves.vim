@@ -115,5 +115,17 @@ function! troves#TroveComplete(findstart, base)
 endfunction
 
 " }}}
+" autocut {{{
+
+function! troves#AutoCut()
+  " Automatically cut of trailing double colons when leaving insert mode.
+  " That way, the user can accept troves like 'Programming Language :: Python'
+  " which are valid troves by themselves but do have children which will
+  " trigger the trailing double colon for the next level of troves.
+
+  call setline('.', substitute(getline('.'), '\zs :: \?\ze\W*$', '', ''))
+endfunction
+
+" }}}
 
 let &cpo = s:cpo_save
