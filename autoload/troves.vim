@@ -33,6 +33,10 @@ endif
 function! troves#Init()
   let b:troves = troves#Load()
   set omnifunc=troves#TroveComplete
+
+  " pythonEscape was chosen since pythonString already allows it in contains=.
+  " Re-using it reduces the amount of trickery needed.
+  syn match pythonEscape ' :: ' contained
 endfunction
 
 function! troves#Load()
