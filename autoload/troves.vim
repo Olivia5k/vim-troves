@@ -28,27 +28,24 @@ if !isdirectory(s:cachedir)
 endif
 
 " }}}
-" Intialization functions {{{
+" Intialization and utility functions {{{
 
 function! troves#Init()
-  let b:troves = troves#Load()
+  call troves#Download()
   set omnifunc=troves#TroveComplete
 
   " pythonEscape was chosen since pythonString already allows it in contains=.
   " Re-using it reduces the amount of trickery needed.
   syn match pythonEscape ' :: ' contained
+
+  com! -buffer -bang -nargs=0 Troves call troves#Command(<bang>0)
 endfunction
 
 function! troves#Load()
-  if !filereadable(g:troves_cache)
-    call troves#Download()
-  endif
-
   let troves = {}
   for line in readfile(g:troves_cache)
     let troves = s:parse(troves, split(line, ' :: '))
   endfor
-
   return troves
 endfunction
 
@@ -70,13 +67,35 @@ endfunction
 
 function! troves#Download()
   " Downloads the troves in the background using curl
-  silent exe "!curl --silent -o" g:troves_cache shellescape(g:troves_url, 1) '&'
+  if !filereadable(g:troves_cache)
+    silent exe "!curl --silent -o" g:troves_cache shellescape(g:troves_url, 1) '&'
+    echo "Downloading troves in background"
+  endif
+endfunction
+
+function! troves#Refresh()
+  if filereadable(g:troves_cache)
+    call delete(g:troves_cache)
+  endif
+  call troves#Download()
+endfunction
+
+function! troves#Command(bang)
+  if a:bang
+    return troves#Refresh()
+  endif
+
+  split `=g:troves_cache`
 endfunction
 
 " }}}
 " Complete function! {{{
 
 function! troves#TroveComplete(findstart, base)
+  if !exists('b:troves')
+    let b:troves = troves#Load()
+  endif
+
   " a:findstart is 1, this is the index finder run
   if a:findstart == 1
     let line = getline('.')
@@ -128,6 +147,66 @@ function! troves#AutoCut()
   " trigger the trailing double colon for the next level of troves.
 
   call setline('.', substitute(getline('.'), '\zs :: \?\ze\W*$', '', ''))
+endfunction
+
+" }}}
+" Browser functions {{{
+
+function! troves#BrowserInit()
+  call troves#BrowserSyntax()
+
+  " Folding for fun and profit!
+  setl foldexpr=troves#BrowserFold\(v:lnum\)
+  setl foldtext=troves#BrowserFoldText\(v:foldstart,\ v:foldend\)
+  setl foldmethod=expr
+  setl textwidth=79
+
+  " Map enter to select the current trove to clipboard and close the window
+  nnoremap <silent> <buffer> <cr> :call troves#BrowserSelect()<cr>
+endfunction
+
+function! troves#BrowserSyntax()
+  syn clear
+  syn match troveComment "#.*$"
+  syn match troveDoubleColon " :: "
+
+  " vim syntax, you beat me once again...
+  syn match troveLevel1 "^\zs[a-zA-Z ]\{-}\ze :: "
+  " syn match troveLevel2 "[^:]*$"
+
+  hi link troveComment Comment
+  hi link troveDoubleColon Special
+  hi link troveLevel1 Preproc
+  " hi link troveLevel2 Type
+endfunction
+
+function! troves#BrowserFold(lnum)
+  let line = getline(a:lnum)
+  if line =~ '^#' || line == ''
+    return 0
+  endif
+
+  let prev = getline(a:lnum - 1)
+  if prev == '' || split(line, ' :: ')[0] != split(prev, ' :: ')[0]
+    return '>1'
+  else
+    return 1
+  endif
+endfunction
+
+function! troves#BrowserFoldText(start, end)
+  let word = split(getline(a:start), ' :: ')[0] . ' '
+  let end = ' ' .(a:end - a:start). ' troves'
+  let fill = repeat('-', &tw - len(word) - len(end))
+  return word . fill . end
+endfunction
+
+function! troves#BrowserSelect()
+  let line = getline('.')
+  call setreg('"', line)
+  q
+  redraw!
+  echo "Trove '" . line . "' at top of clipboard"
 endfunction
 
 " }}}

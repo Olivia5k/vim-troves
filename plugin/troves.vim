@@ -14,6 +14,8 @@ augroup troves
   au!
   au BufEnter setup.py call troves#Init()
   au InsertLeave setup.py call troves#AutoCut()
+
+  au BufEnter troves.txt call troves#BrowserInit()
 augroup END
 
 let &cpo = s:cpo_save
