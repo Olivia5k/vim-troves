@@ -1,4 +1,4 @@
-" autoload/troves.vim
+" plugin/troves.vim
 " Author:       Lowe Thiderman <lowe.thiderman@gmail.com>
 " Github:       https://github.com/thiderman/vim-troves
 
